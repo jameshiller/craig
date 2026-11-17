@@ -18,6 +18,8 @@ import type { CraigBot } from '../bot.js';
 import AutorecordCommand from '../commands/autorecord.js';
 import BlessCommand from '../commands/bless.js';
 import BotProfileCommand from '../commands/botprofile.js';
+import CampaignCommand from '../commands/campaign.js';
+import CharacterCommand from '../commands/character.js';
 import FeaturesCommand from '../commands/features.js';
 import InfoCommand from '../commands/info.js';
 import JoinCommand from '../commands/join.js';
@@ -53,6 +55,8 @@ const commandConstructors = [
   AutorecordCommand,
   BlessCommand,
   BotProfileCommand,
+  CampaignCommand,
+  CharacterCommand,
   FeaturesCommand,
   InfoCommand,
   JoinCommand,

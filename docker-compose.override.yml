@@ -1,0 +1,36 @@
+# Jarvis 2026-11-17: all persistent storage on nas1 NFS (James: "all storage uses nas").
+# postgres/redis/kitchen-tmp -> NVMe tier; recordings -> HDD tier. kitchen-tmp on NVMe NFS
+# (intentionally NAS per James, despite cook I/O).
+services:
+  db:
+    volumes:
+      - /mnt/container-data-fast/craig/postgres:/var/lib/postgresql/data
+  redis:
+    volumes:
+      - /mnt/container-data-fast/craig/redis:/data
+  bot:
+    volumes:
+      - /mnt/container-data/craig/data:/data
+    # Local patch: /campaign and /character talk to scribe's registry API.
+    # Build from this checkout so the patched commands ship with the bot.
+    build:
+      context: .
+      args:
+        CRAIG_VERSION: ${CRAIG_VERSION:-local}
+    environment:
+      SCRIBE_API_URL: ${SCRIBE_API_URL:-http://scribe-api:8090}
+      SCRIBE_API_TOKEN: ${SCRIBE_API_TOKEN:-}
+  kitchen:
+    volumes:
+      - /mnt/container-data/craig/data:/data
+      - /mnt/container-data-fast/craig/kitchen-tmp:/tmp/craig
+  ferret:
+    volumes:
+      - /mnt/container-data/craig/data:/data
+  ennuizel-streamer:
+    volumes:
+      - /mnt/container-data/craig/data:/data
+      - /mnt/container-data/craig/data/rec:/data/rec:ro
+  tasks:
+    volumes:
+      - /mnt/container-data/craig/data:/data
