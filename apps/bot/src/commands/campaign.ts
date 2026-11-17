@@ -99,7 +99,7 @@ export default class Campaign extends GeneralCommand {
             {
               type: CommandOptionType.BOOLEAN,
               name: 'autorecord',
-              description: 'Also arm Craig auto-record on the voice channel (default: true)'
+              description: 'Start recording the moment someone joins voice (default: false - manual /join)'
             }
           ]
         },
@@ -205,20 +205,35 @@ export default class Campaign extends GeneralCommand {
 
           const linked = await scribe.link(camp.slug, { voice, text, actor });
 
-          // Arm Craig's own auto-record so a session starts the moment somebody joins.
-          const armAuto = (ctx.options.link.autorecord as boolean | undefined) ?? true;
+          // Recording is manual by default: tables usually want a pre-session warm-up
+          // that should never reach the transcript. `autorecord: true` opts back in.
+          const armAuto = (ctx.options.link.autorecord as boolean | undefined) ?? false;
           let autoNote = '';
-          if (linked.voice && armAuto) {
-            await this.autoRecord.upsert({
-              guildId: ctx.guildID,
-              channelId: linked.voice,
-              userId: actor,
-              postChannelId: null,
-              minimum: 1,
-              triggerUsers: [],
-              triggerRoles: []
-            });
-            autoNote = `\nAuto-record is armed on <#${linked.voice}> - joining it starts a recording.`;
+          if (linked.voice) {
+            const row = await this.db
+              .selectFrom('AutoRecord')
+              .selectAll()
+              .where('guildId', '=', ctx.guildID!)
+              .where('clientId', '=', this.client.bot.user.id)
+              .where('channelId', '=', linked.voice)
+              .executeTakeFirst();
+            if (armAuto) {
+              await this.autoRecord.upsert({
+                guildId: ctx.guildID,
+                channelId: linked.voice,
+                userId: actor,
+                postChannelId: null,
+                minimum: 1,
+                triggerUsers: [],
+                triggerRoles: []
+              });
+              autoNote = `\nAuto-record is armed on <#${linked.voice}> - joining it starts a recording.`;
+            } else {
+              // Actively disarm, so a row left by Craig's own /autorecord cannot
+              // start capturing the warm-up.
+              if (row) await this.autoRecord.delete(row);
+              autoNote = `\nRecording is manual - run \`/join\` in <#${linked.text ?? linked.voice}> when you want capture to start.`;
+            }
           }
 
           return {
