@@ -29,7 +29,12 @@ export default class Character extends GeneralCommand {
           description: 'Set a player\'s character.',
           options: [
             { type: CommandOptionType.USER, name: 'user', description: 'The player', required: true },
-            { type: CommandOptionType.STRING, name: 'character', description: 'Character name', required: true, max_length: 100 },
+            {
+              type: CommandOptionType.STRING,
+              name: 'character',
+              description: 'Character name (not needed when gm:true)',
+              max_length: 100
+            },
             { type: CommandOptionType.STRING, name: 'campaign', description: 'Campaign slug (default: this channel\'s campaign)' },
             { type: CommandOptionType.STRING, name: 'class', description: 'Class / role, e.g. "alchemist"', max_length: 60 },
             { type: CommandOptionType.STRING, name: 'notes', description: 'Anything else worth remembering', max_length: 200 },
@@ -101,14 +106,26 @@ export default class Character extends GeneralCommand {
           if (role === 'gm' && !isAdmin && !(camp.gm_ids ?? []).includes(actor))
             return { content: 'Only a server manager or an existing GM can promote a GM.', ephemeral: true };
 
+          // A GM is a row without a character, so only a player needs one.
+          const character = ((ctx.options.set.character as string | undefined) ?? '').trim();
+          if (role === 'player' && !character)
+            return {
+              content: 'Give me a `character`, or set `gm: true` to mark this user as a GM.',
+              ephemeral: true
+            };
+
           const displayName =
             ctx.users.find((u) => u.id === target)?.username ?? this.client.bot.users.get(target)?.username ?? 'player';
 
           const saved = await scribe.setPlayer(camp.slug, target, {
             player: displayName,
-            character: role === 'gm' ? null : (ctx.options.set.character as string),
+            character: role === 'gm' ? null : character,
             role,
-            notes: (ctx.options.set.class as string) ?? '',
+            // `class` is the short label, `notes` the free text; the registry has one field
+            notes: [(ctx.options.set.class as string | undefined) ?? '', (ctx.options.set.notes as string | undefined) ?? '']
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join(' - '),
             actor
           });
 
