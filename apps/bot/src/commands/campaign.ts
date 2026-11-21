@@ -131,7 +131,10 @@ export default class Campaign extends GeneralCommand {
           type: CommandOptionType.SUB_COMMAND,
           name: 'show',
           description: 'Show a campaign overview.',
-          options: [{ type: CommandOptionType.STRING, name: 'campaign', description: 'Campaign slug (default: this channel\'s campaign)' }]
+          options: [
+            { type: CommandOptionType.STRING, name: 'campaign', description: 'Campaign slug (default: this channel\'s campaign)' },
+            { type: CommandOptionType.BOOLEAN, name: 'public', description: 'Post the overview to the channel for everyone (default: only you)' }
+          ]
         },
         {
           type: CommandOptionType.SUB_COMMAND,
@@ -284,7 +287,10 @@ export default class Campaign extends GeneralCommand {
         case 'show': {
           const camp = await this.resolve(ctx, ctx.options.show.campaign as string | undefined);
           if (!camp) return { content: 'No campaign found for this channel.', ephemeral: true };
-          return { embeds: [campaignEmbed(camp)], ephemeral: true };
+          // /campaign show public:true shares the embed with the whole channel
+          // (GM's call - the brief is table-canon only, but still a spoiler surface).
+          const isPublic = (ctx.options.show.public as boolean | undefined) ?? false;
+          return { embeds: [campaignEmbed(camp)], ephemeral: !isPublic };
         }
 
         case 'list': {
