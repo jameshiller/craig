@@ -101,6 +101,18 @@ export interface CampaignRow {
   active: boolean;
 }
 
+export interface GlossaryView {
+  slug: string;
+  name: string;
+  registry: string[];
+  learned: string[];
+  included: string[];
+  dropped: string[];
+  prompt_chars: number;
+  prompt_max: number;
+  tokens_est: number;
+}
+
 export const scribe = {
   health: () => request<{ ok: boolean; campaigns: number; default: string }>('GET', '/health'),
 
@@ -137,6 +149,9 @@ export const scribe = {
 
   addGlossary: (slug: string, term: string, actor: string) =>
     request<{ glossary: string[] }>('POST', `/campaigns/${encodeURIComponent(slug)}/glossary`, { term, actor }),
+
+  getGlossary: (slug: string) =>
+    request<GlossaryView>('GET', `/campaigns/${encodeURIComponent(slug)}/glossary`),
 
   removeGlossary: (slug: string, term: string, actor: string) =>
     request<{ glossary: string[] }>('DELETE', `/campaigns/${encodeURIComponent(slug)}/glossary/${encodeURIComponent(term)}`, undefined, { actor })

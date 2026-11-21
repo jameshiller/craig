@@ -164,7 +164,7 @@ export default class Campaign extends GeneralCommand {
           name: 'glossary',
           description: 'Teach the summarizer a name it keeps getting wrong.',
           options: [
-            { type: CommandOptionType.STRING, name: 'term', description: 'Correct spelling', required: true, max_length: 100 },
+            { type: CommandOptionType.STRING, name: 'term', description: 'Correct spelling (omit to list the glossary and ASR prompt budget)', max_length: 100 },
             { type: CommandOptionType.STRING, name: 'campaign', description: 'Campaign slug (default: this channel\'s campaign)' },
             { type: CommandOptionType.BOOLEAN, name: 'remove', description: 'Remove the term instead of adding it' }
           ]
@@ -331,9 +331,36 @@ export default class Campaign extends GeneralCommand {
         case 'glossary': {
           const camp = await this.resolve(ctx, ctx.options.glossary.campaign as string | undefined);
           if (!camp) return { content: 'No campaign found for this channel.', ephemeral: true };
+          const term = ((ctx.options.glossary.term as string) ?? '').trim();
+
+          // No term -> read-only view (issue #4): registry + learned terms plus the
+          // ASR prompt budget, so a GM can see what actually reaches Whisper and what
+          // the 600-char cap drops. Reads need no GM gate, unlike add/remove below.
+          if (!term) {
+            const g = await scribe.getGlossary(camp.slug);
+            const list = (items: string[]) => clampField(items.length ? items.join(', ') : '*empty*');
+            return {
+              embeds: [{
+                title: `Glossary — ${g.name} (${g.slug})`,
+                color: EMBED_COLOR,
+                fields: [
+                  { name: `Registry (${g.registry.length})`, value: list(g.registry), inline: false },
+                  { name: `Learned (${g.learned.length})`, value: list(g.learned), inline: false },
+                  {
+                    name: 'ASR prompt budget',
+                    value: `${g.prompt_chars} / ${g.prompt_max} chars (~${g.tokens_est} of ~224 Whisper tokens)`,
+                    inline: false
+                  },
+                  { name: 'Dropped by cap', value: list(g.dropped), inline: false }
+                ],
+                footer: { text: 'scribe' }
+              }],
+              ephemeral: true
+            };
+          }
+
           if (!isAdmin && !(camp.gm_ids ?? []).includes(actor))
             return { content: `Only a GM of **${camp.name}** or a server manager can edit its glossary.`, ephemeral: true };
-          const term = (ctx.options.glossary.term as string).trim();
           const remove = (ctx.options.glossary.remove as boolean | undefined) ?? false;
           const res = remove
             ? await scribe.removeGlossary(camp.slug, term, actor)
