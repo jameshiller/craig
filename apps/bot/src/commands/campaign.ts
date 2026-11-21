@@ -20,6 +20,22 @@ function fmtChannels(camp: CampaignRecord): string {
   return `**voice** ${voice}\n**text** ${text}`;
 }
 
+/**
+ * Discord rejects an embed whose field value exceeds 1024 chars (or is empty),
+ * with a 50035 Invalid Form Body that fails the whole response - and the bible
+ * brief grows with every session, so `/campaign show` died permanently on
+ * established campaigns (issue #5). Clamp every field; prefer cutting the Bible
+ * brief at a line boundary so the ellipsis never lands mid-sentence.
+ */
+function clampField(value: string, max = 1024): string {
+  const v = value.trim();
+  if (!v) return '*empty*';
+  if (v.length <= max) return v;
+  const lineCut = v.lastIndexOf('\n', max - 2);
+  const head = lineCut > max / 2 ? v.slice(0, lineCut) : v.slice(0, max - 1);
+  return head.trimEnd() + '…';
+}
+
 function campaignEmbed(camp: CampaignRecord) {
   const players = Object.entries(camp.players)
     .map(([id, p]) => {
@@ -37,12 +53,12 @@ function campaignEmbed(camp: CampaignRecord) {
     title: `${camp.name} (${camp.slug})`,
     color: EMBED_COLOR,
     fields: [
-      { name: 'System', value: camp.system || '*unspecified*', inline: true },
-      { name: 'Setting', value: camp.setting || '*unspecified*', inline: true },
-      { name: 'Channels', value: fmtChannels(camp), inline: false },
-      { name: 'Players', value: players || '*none declared*', inline: false },
-      { name: 'Glossary', value: camp.glossary.length ? camp.glossary.join(', ') : '*empty*', inline: false },
-      { name: 'Bible', value: bible, inline: false }
+      { name: 'System', value: clampField(camp.system || '*unspecified*'), inline: true },
+      { name: 'Setting', value: clampField(camp.setting || '*unspecified*'), inline: true },
+      { name: 'Channels', value: clampField(fmtChannels(camp)), inline: false },
+      { name: 'Players', value: clampField(players || '*none declared*'), inline: false },
+      { name: 'Glossary', value: clampField(camp.glossary.length ? camp.glossary.join(', ') : '*empty*'), inline: false },
+      { name: 'Bible', value: clampField(bible), inline: false }
     ],
     footer: { text: 'scribe' }
   };
